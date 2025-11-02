@@ -43,6 +43,7 @@ func main() {
 	http.HandleFunc("/", proxyHandler.HandleRequest)
 	http.HandleFunc("/payment", proxyHandler.HandleRequest)
 	http.HandleFunc("/order", proxyHandler.HandleRequest)
+	http.HandleFunc("/process", proxyHandler.HandleRequest)
 	http.HandleFunc("/health", proxyHandler.HandleHealth)
 	http.HandleFunc("/status", proxyHandler.HandleStatus)
 

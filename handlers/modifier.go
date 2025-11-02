@@ -9,15 +9,19 @@ import (
 
 // MessageModifier modifies messages based on attack type
 type MessageModifier struct {
-	config       *config.Config
-	priceAttack  *attacks.PriceAttack
+	config         *config.Config
+	priceAttack    *attacks.PriceAttack
+	addressAttack  *attacks.AddressAttack
+	productAttack  *attacks.ProductAttack
 }
 
 // NewMessageModifier creates a new message modifier
 func NewMessageModifier(cfg *config.Config) *MessageModifier {
 	return &MessageModifier{
-		config:      cfg,
-		priceAttack: attacks.NewPriceAttack(cfg),
+		config:        cfg,
+		priceAttack:   attacks.NewPriceAttack(cfg),
+		addressAttack: attacks.NewAddressAttack(cfg),
+		productAttack: attacks.NewProductAttack(cfg),
 	}
 }
 
@@ -44,14 +48,10 @@ func (m *MessageModifier) ModifyMessage(originalMsg map[string]interface{}) (*ty
 		attackLog, modifiedMsg = m.priceAttack.ModifyMessage(originalMsg)
 
 	case types.AttackTypeAddressManipulation:
-		// TODO: Implement address manipulation
-		logger.Warn("Address manipulation not yet implemented, using price manipulation")
-		attackLog, modifiedMsg = m.priceAttack.ModifyMessage(originalMsg)
+		attackLog, modifiedMsg = m.addressAttack.ModifyMessage(originalMsg)
 
 	case types.AttackTypeProductSubstitution:
-		// TODO: Implement product substitution
-		logger.Warn("Product substitution not yet implemented, using price manipulation")
-		attackLog, modifiedMsg = m.priceAttack.ModifyMessage(originalMsg)
+		attackLog, modifiedMsg = m.productAttack.ModifyMessage(originalMsg)
 
 	default:
 		logger.Warn("Unknown attack type: %s, passing message through", attackType)
