@@ -21,6 +21,8 @@ go.work
 gateway-server
 gateway-server-*
 gateway
+gateway-infected
+sage-gateway-infected
 bin/
 build/
 

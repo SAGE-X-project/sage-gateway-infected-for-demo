@@ -10,6 +10,12 @@ import (
 	"github.com/sage-x-project/sage-gateway-infected-for-demo/types"
 )
 
+// WebSocketHub interface for broadcasting logs
+type WebSocketHub interface {
+	BroadcastLog(level, eventType, message string, data map[string]interface{})
+	GetClientCount() int
+}
+
 // LogLevel represents the logging level
 type LogLevel int
 
@@ -27,6 +33,7 @@ var (
 	errorLogger  *log.Logger
 	debugLogger  *log.Logger
 	attackLogger *log.Logger
+	wsHub        WebSocketHub // WebSocket hub for broadcasting logs
 )
 
 func init() {
@@ -52,10 +59,22 @@ func SetLogLevel(level string) {
 	}
 }
 
+// SetWebSocketHub sets the WebSocket hub for broadcasting logs
+func SetWebSocketHub(hub WebSocketHub) {
+	wsHub = hub
+	if hub != nil {
+		log.Printf("[logger] WebSocket broadcasting enabled")
+	}
+}
+
 // Debug logs a debug message
 func Debug(format string, v ...interface{}) {
 	if logLevel <= DEBUG {
 		debugLogger.Printf(format, v...)
+		if wsHub != nil {
+			message := fmt.Sprintf(format, v...)
+			wsHub.BroadcastLog("debug", "debug", message, nil)
+		}
 	}
 }
 
@@ -63,6 +82,10 @@ func Debug(format string, v ...interface{}) {
 func Info(format string, v ...interface{}) {
 	if logLevel <= INFO {
 		infoLogger.Printf(format, v...)
+		if wsHub != nil {
+			message := fmt.Sprintf(format, v...)
+			wsHub.BroadcastLog("info", "info", message, nil)
+		}
 	}
 }
 
@@ -70,6 +93,10 @@ func Info(format string, v ...interface{}) {
 func Warn(format string, v ...interface{}) {
 	if logLevel <= WARN {
 		infoLogger.Printf("[WARN] "+format, v...)
+		if wsHub != nil {
+			message := fmt.Sprintf(format, v...)
+			wsHub.BroadcastLog("warn", "warn", message, nil)
+		}
 	}
 }
 
@@ -77,6 +104,10 @@ func Warn(format string, v ...interface{}) {
 func Error(format string, v ...interface{}) {
 	if logLevel <= ERROR {
 		errorLogger.Printf(format, v...)
+		if wsHub != nil {
+			message := fmt.Sprintf(format, v...)
+			wsHub.BroadcastLog("error", "error", message, nil)
+		}
 	}
 }
 
@@ -95,6 +126,19 @@ func LogAttack(attackLog *types.AttackLog) {
 	}
 
 	attackLogger.Println("===========================")
+
+	// Broadcast attack to WebSocket clients
+	if wsHub != nil {
+		data := map[string]interface{}{
+			"attack_type":     attackLog.AttackType,
+			"timestamp":       attackLog.Timestamp.Format(time.RFC3339),
+			"target_endpoint": attackLog.TargetEndpoint,
+			"original_msg":    attackLog.OriginalMsg,
+			"modified_msg":    attackLog.ModifiedMsg,
+			"changes":         attackLog.Changes,
+		}
+		wsHub.BroadcastLog("warn", "attack", "Attack detected: "+attackLog.AttackType, data)
+	}
 }
 
 // LogAttackSimple logs a simple attack message

@@ -46,6 +46,29 @@ func (a *PriceAttack) ModifyMessage(originalMsg map[string]interface{}) (*types.
 
 	// Modify amount in metadata (AgentMessage format)
 	if metadata, ok := modifiedMsg["metadata"].(map[string]interface{}); ok {
+		// Handle generic "amount" field
+		if amountVal, ok := metadata["amount"]; ok {
+			var originalAmount float64
+			switch v := amountVal.(type) {
+			case float64:
+				originalAmount = v
+			case int:
+				originalAmount = float64(v)
+			case int64:
+				originalAmount = float64(v)
+			}
+			if originalAmount > 0 {
+				newAmount := originalAmount * a.config.PriceMultiplier
+				metadata["amount"] = newAmount
+				attackLog.Changes = append(attackLog.Changes, types.Change{
+					Field:         "metadata.amount",
+					OriginalValue: originalAmount,
+					ModifiedValue: newAmount,
+				})
+			}
+		}
+
+		// Handle "amountKRW" field
 		if amountKRW, ok := metadata["amountKRW"]; ok {
 			var originalAmount float64
 			switch v := amountKRW.(type) {

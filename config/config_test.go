@@ -263,3 +263,130 @@ func TestLoadConfig_Integration(t *testing.T) {
 
 	os.Clearenv()
 }
+
+func TestConfig_Validate_ValidConfig(t *testing.T) {
+	cfg := &Config{
+		GatewayPort:     "8090",
+		AttackType:      types.AttackTypePriceManipulation,
+		TargetAgentURL:  "http://localhost:8091",
+		PriceMultiplier: 100.0,
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("Validate() should not error on valid config, got: %v", err)
+	}
+}
+
+func TestConfig_Validate_EmptyPort(t *testing.T) {
+	cfg := &Config{
+		GatewayPort:     "",
+		AttackType:      types.AttackTypePriceManipulation,
+		TargetAgentURL:  "http://localhost:8091",
+		PriceMultiplier: 100.0,
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("Validate() should error on empty GATEWAY_PORT")
+	}
+}
+
+func TestConfig_Validate_InvalidAttackType(t *testing.T) {
+	cfg := &Config{
+		GatewayPort:     "8090",
+		AttackType:      "invalid_attack_type",
+		TargetAgentURL:  "http://localhost:8091",
+		PriceMultiplier: 100.0,
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("Validate() should error on invalid ATTACK_TYPE")
+	}
+}
+
+func TestConfig_Validate_NegativeMultiplier(t *testing.T) {
+	cfg := &Config{
+		GatewayPort:     "8090",
+		AttackType:      types.AttackTypePriceManipulation,
+		TargetAgentURL:  "http://localhost:8091",
+		PriceMultiplier: -10.0,
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("Validate() should error on negative PRICE_MULTIPLIER")
+	}
+}
+
+func TestConfig_Validate_ZeroMultiplier(t *testing.T) {
+	cfg := &Config{
+		GatewayPort:     "8090",
+		AttackType:      types.AttackTypePriceManipulation,
+		TargetAgentURL:  "http://localhost:8091",
+		PriceMultiplier: 0.0,
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("Validate() should error on zero PRICE_MULTIPLIER")
+	}
+}
+
+func TestConfig_Validate_NoTargetURL(t *testing.T) {
+	cfg := &Config{
+		GatewayPort:     "8090",
+		AttackType:      types.AttackTypePriceManipulation,
+		TargetAgentURL:  "",
+		AgentURLs:       map[string]string{},
+		PriceMultiplier: 100.0,
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("Validate() should error when both TARGET_AGENT_URL and AGENT_URLS are empty")
+	}
+}
+
+func TestConfig_Validate_WithAgentURLs(t *testing.T) {
+	cfg := &Config{
+		GatewayPort: "8090",
+		AttackType:  types.AttackTypePriceManipulation,
+		AgentURLs: map[string]string{
+			"payment": "http://localhost:19083",
+			"medical": "http://localhost:19082",
+		},
+		TargetAgentURL:  "", // Empty is OK if AgentURLs is set
+		PriceMultiplier: 100.0,
+	}
+
+	err := cfg.Validate()
+	if err != nil {
+		t.Errorf("Validate() should not error when AGENT_URLS is set, got: %v", err)
+	}
+}
+
+func TestConfig_PrintConfig(t *testing.T) {
+	cfg := &Config{
+		GatewayPort:     "8090",
+		LogLevel:        "info",
+		AttackEnabled:   true,
+		AttackType:      types.AttackTypePriceManipulation,
+		TargetAgentURL:  "http://localhost:8091",
+		PriceMultiplier: 100.0,
+		AttackerWallet:  "0xTEST",
+		AgentURLs: map[string]string{
+			"payment": "http://localhost:19083",
+		},
+	}
+
+	// Should not panic
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("PrintConfig() panicked: %v", r)
+		}
+	}()
+
+	cfg.PrintConfig()
+}

@@ -15,16 +15,22 @@ type ProxyHandler struct {
 	config      *config.Config
 	interceptor *MessageInterceptor
 	modifier    *MessageModifier
-	client      *http.Client
+	client      *RetryableHTTPClient
 }
 
 // NewProxyHandler creates a new proxy handler
 func NewProxyHandler(cfg *config.Config) *ProxyHandler {
+	retryConfig := &RetryConfig{
+		MaxRetries:  cfg.MaxRetries,
+		BackoffBase: cfg.RetryBackoffBase,
+		HTTPTimeout: cfg.HTTPTimeout,
+	}
+
 	return &ProxyHandler{
 		config:      cfg,
 		interceptor: NewMessageInterceptor(),
 		modifier:    NewMessageModifier(cfg),
-		client:      &http.Client{},
+		client:      NewRetryableHTTPClient(retryConfig),
 	}
 }
 
@@ -49,6 +55,23 @@ func (p *ProxyHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	logger.Debug("Original message: %+v", originalMsg)
 
+	// Detect A2A protocol (SAGE + HPKE)
+	a2aStatus := DetectA2AProtocol(r, rawBody)
+	logger.Info("Protocol detection: %s", a2aStatus.GetStatusString())
+
+	if a2aStatus.SAGEEnabled {
+		logger.Info("✅ RFC 9421 Signature detected (ID: %s)", a2aStatus.SignatureID)
+		if a2aStatus.Algorithm != "" {
+			logger.Debug("Algorithm: %s", a2aStatus.Algorithm)
+		}
+	} else {
+		logger.Warn("❌ No RFC 9421 signature found - message is NOT signed")
+	}
+
+	if a2aStatus.HPKEEnabled {
+		logger.Info("✅ HPKE encrypted payload detected")
+	}
+
 	// Try to parse as AgentMessage to extract "To" field for dynamic routing
 	var agentMsg types.AgentMessage
 	var targetURL string
@@ -72,10 +95,21 @@ func (p *ProxyHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Check if attack is enabled
 	if p.modifier.ShouldModify() {
-		// Apply attack modification
-		attackLog, modifiedMsg := p.modifier.ModifyMessage(originalMsg)
+		// Apply A2A-aware attack modification
+		attackLog, modifiedMsg := p.modifier.ModifyMessageWithA2A(originalMsg, a2aStatus)
 
 		if attackLog != nil && len(attackLog.Changes) > 0 {
+			// Additional warnings for encrypted payloads
+			if a2aStatus.SAGEEnabled && a2aStatus.HPKEEnabled {
+				logger.Warn("⚠️  Target agent will REJECT this request due to:")
+				logger.Warn("   - Signature verification failure (signature invalidated)")
+				logger.Warn("   - HPKE decryption failure (integrity check will fail)")
+			} else if a2aStatus.SAGEEnabled {
+				logger.Warn("⚠️  Target agent will REJECT this request due to signature verification failure")
+			} else if a2aStatus.HPKEEnabled {
+				logger.Warn("⚠️  Target agent will FAIL to decrypt this message (HPKE integrity broken)")
+			}
+
 			// Log the attack
 			logger.LogAttack(attackLog)
 
