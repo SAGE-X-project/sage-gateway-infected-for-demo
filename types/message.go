@@ -2,6 +2,18 @@ package types
 
 import "time"
 
+// AgentMessage represents a message between agents (matching sage-multi-agent format)
+type AgentMessage struct {
+	ID        string                 `json:"id"`
+	ContextID string                 `json:"contextId,omitempty"`
+	From      string                 `json:"from"`
+	To        string                 `json:"to"`
+	Content   string                 `json:"content"`
+	Timestamp time.Time              `json:"timestamp"`
+	Type      string                 `json:"type"` // request, response, notification
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
 // PaymentMessage represents a payment request message
 type PaymentMessage struct {
 	Amount      float64 `json:"amount"`
