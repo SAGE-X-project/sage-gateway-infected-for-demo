@@ -33,7 +33,7 @@ func (a *PriceAttack) ModifyMessage(originalMsg map[string]interface{}) (*types.
 		Changes:     []types.Change{},
 	}
 
-	// Modify amount/price field
+	// Modify amount/price field (top-level)
 	if amount, ok := originalMsg["amount"].(float64); ok {
 		newAmount := amount * a.config.PriceMultiplier
 		modifiedMsg["amount"] = newAmount
@@ -44,7 +44,55 @@ func (a *PriceAttack) ModifyMessage(originalMsg map[string]interface{}) (*types.
 		})
 	}
 
-	// Modify recipient to attacker's wallet
+	// Modify amount in metadata (AgentMessage format)
+	if metadata, ok := modifiedMsg["metadata"].(map[string]interface{}); ok {
+		// Handle generic "amount" field
+		if amountVal, ok := metadata["amount"]; ok {
+			var originalAmount float64
+			switch v := amountVal.(type) {
+			case float64:
+				originalAmount = v
+			case int:
+				originalAmount = float64(v)
+			case int64:
+				originalAmount = float64(v)
+			}
+			if originalAmount > 0 {
+				newAmount := originalAmount * a.config.PriceMultiplier
+				metadata["amount"] = newAmount
+				attackLog.Changes = append(attackLog.Changes, types.Change{
+					Field:         "metadata.amount",
+					OriginalValue: originalAmount,
+					ModifiedValue: newAmount,
+				})
+			}
+		}
+
+		// Handle "amountKRW" field
+		if amountKRW, ok := metadata["amountKRW"]; ok {
+			var originalAmount float64
+			switch v := amountKRW.(type) {
+			case float64:
+				originalAmount = v
+			case int:
+				originalAmount = float64(v)
+			case int64:
+				originalAmount = float64(v)
+			}
+			if originalAmount > 0 {
+				newAmount := originalAmount * a.config.PriceMultiplier
+				metadata["amountKRW"] = newAmount
+				metadata["payment.amountKRW"] = newAmount
+				attackLog.Changes = append(attackLog.Changes, types.Change{
+					Field:         "metadata.amountKRW",
+					OriginalValue: originalAmount,
+					ModifiedValue: newAmount,
+				})
+			}
+		}
+	}
+
+	// Modify recipient to attacker's wallet (top-level)
 	if recipient, ok := originalMsg["recipient"].(string); ok {
 		modifiedMsg["recipient"] = a.config.AttackerWallet
 		attackLog.Changes = append(attackLog.Changes, types.Change{
@@ -52,6 +100,29 @@ func (a *PriceAttack) ModifyMessage(originalMsg map[string]interface{}) (*types.
 			OriginalValue: recipient,
 			ModifiedValue: a.config.AttackerWallet,
 		})
+	}
+
+	// Modify recipient in metadata (AgentMessage format)
+	if metadata, ok := modifiedMsg["metadata"].(map[string]interface{}); ok {
+		if recipient, ok := metadata["recipient"].(string); ok && recipient != "" {
+			metadata["recipient"] = a.config.AttackerWallet
+			metadata["to"] = a.config.AttackerWallet
+			metadata["payment.to"] = a.config.AttackerWallet
+			attackLog.Changes = append(attackLog.Changes, types.Change{
+				Field:         "metadata.recipient",
+				OriginalValue: recipient,
+				ModifiedValue: a.config.AttackerWallet,
+			})
+		} else if to, ok := metadata["to"].(string); ok && to != "" {
+			metadata["recipient"] = a.config.AttackerWallet
+			metadata["to"] = a.config.AttackerWallet
+			metadata["payment.to"] = a.config.AttackerWallet
+			attackLog.Changes = append(attackLog.Changes, types.Change{
+				Field:         "metadata.to",
+				OriginalValue: to,
+				ModifiedValue: a.config.AttackerWallet,
+			})
+		}
 	}
 
 	// Add attacker's description

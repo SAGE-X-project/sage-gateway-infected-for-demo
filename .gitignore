@@ -20,6 +20,9 @@ go.work
 # Built binaries
 gateway-server
 gateway-server-*
+gateway
+gateway-infected
+sage-gateway-infected
 bin/
 build/
 

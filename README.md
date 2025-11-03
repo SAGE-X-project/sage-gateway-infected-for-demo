@@ -45,10 +45,13 @@ SAGE 프로토콜의 보안 효과를 시연하기 위한 데모용 컴포넌트
 {"product": "iPhone SE"}
 ```
 
-### 3. 공격 로그 시스템
+### 3. 공격 로그 시스템 ✨
 - 실시간 변조 로그 출력
 - 변조 전/후 비교 표시
-- WebSocket을 통한 Frontend 전송
+- **WebSocket을 통한 Frontend 전송 (완료)**
+  - 엔드포인트: `ws://localhost:8090/ws/logs`
+  - 실시간 로그 스트리밍
+  - HTML 테스트 클라이언트 포함
 
 ## 프로젝트 구조
 
@@ -74,30 +77,95 @@ sage-gateway-infected-for-demo/
 
 ## 설치 및 실행
 
-### 1. 의존성 설치
+### 빠른 시작 (Makefile 사용 - 권장)
+
+#### 1. 환경 설정
+```bash
+make setup
+```
+
+이 명령은:
+- 의존성 다운로드
+- `.env.example`을 `.env`로 복사
+- 개발 환경 초기화
+
+#### 2. 빌드
+```bash
+make build
+```
+
+#### 3. 실행
+```bash
+make run
+```
+
+#### 4. 정리
+```bash
+make clean
+```
+
+### 상세 가이드
+
+**모든 명령어 보기:**
+```bash
+make help
+```
+
+**빌드 상태 확인:**
+```bash
+make status
+```
+
+**테스트 실행:**
+```bash
+make test              # 단위 테스트
+make test-gateway      # Gateway 통합 테스트
+make test-websocket    # WebSocket 테스트
+make test-attack       # 공격 시나리오 테스트
+```
+
+### 수동 설정 (고급)
+
+#### 1. 의존성 설치
 ```bash
 go mod download
 ```
 
-### 2. 환경 변수 설정
+#### 2. 환경 변수 설정
 ```bash
-export GATEWAY_PORT=8090
+# .env 파일 생성
+cp .env.example .env
+
+# 또는 직접 설정
+export GATEWAY_PORT=5500
 export ATTACK_ENABLED=true
 export ATTACK_TYPE=price_manipulation
-export TARGET_AGENT_URL=http://localhost:8091
-export LOG_LEVEL=debug
+export AGENT_URLS='{"root":"http://localhost:18080","payment":"http://localhost:19083"}'
+export LOG_LEVEL=info
 ```
 
-### 3. 실행
+#### 3. 빌드 및 실행
 ```bash
-go run main.go
+# 빌드
+go build -o gateway-infected .
+
+# 실행
+./gateway-infected
 ```
 
-또는 빌드 후 실행:
-```bash
-go build -o gateway-server
-./gateway-server
-```
+### 연결 포인트
+
+게이트웨이가 실행되면:
+
+1. **Root Agent 연결:** `http://localhost:5500`
+   - Agent 간 통신 프록시 엔드포인트
+   - 메시지 변조 및 전달
+
+2. **Frontend 모니터링:** `ws://localhost:5500/ws/logs`
+   - 실시간 로그 스트리밍
+   - WebSocket 연결
+
+**상세 가이드:** [BUILD_AND_RUN.md](./BUILD_AND_RUN.md) 참조
 
 ## 사용 예시
 
@@ -132,6 +200,41 @@ curl -X POST http://localhost:8090/payment \
 ```
 
 ## API 엔드포인트
+
+### WebSocket: /ws/logs ✨ NEW
+실시간 로그 스트리밍을 제공합니다.
+
+**연결 방법**:
+```javascript
+const ws = new WebSocket('ws://localhost:8090/ws/logs');
+
+ws.onmessage = (event) => {
+  const logEvent = JSON.parse(event.data);
+  console.log(logEvent);
+};
+```
+
+**로그 이벤트 포맷**:
+```json
+{
+  "type": "attack",
+  "timestamp": "2025-11-04T12:34:56.789Z",
+  "level": "warn",
+  "message": "Attack detected: price_manipulation",
+  "data": {
+    "attack_type": "price_manipulation",
+    "original_msg": {"amount": 100},
+    "modified_msg": {"amount": 10000},
+    "changes": [...]
+  }
+}
+```
+
+**HTML 테스트 클라이언트**:
+```bash
+# 브라우저에서 열기
+open test_websocket.html
+```
 
 ### POST /payment
 결제 요청을 프록시하고 변조합니다.
@@ -271,9 +374,10 @@ curl -X POST http://localhost:8090/payment \
 - [x] 기본 프록시 서버
 - [x] 메시지 가로채기
 - [x] 금액 변조 (price_manipulation)
-- [ ] 주소 변조 (address_manipulation)
-- [ ] 상품 변조 (product_substitution)
-- [ ] WebSocket 로그 전송
+- [x] 주소 변조 (address_manipulation)
+- [x] 상품 변조 (product_substitution)
+- [x] WebSocket 로그 전송 ✨ **NEW**
+- [ ] A2A 프로토콜 인식 (RFC 9421, HPKE)
 - [ ] 대시보드 통합
 
 ## 라이선스
