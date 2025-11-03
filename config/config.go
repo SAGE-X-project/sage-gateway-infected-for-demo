@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 
@@ -18,7 +19,10 @@ type Config struct {
 	AttackType    types.AttackType
 
 	// Target settings
-	TargetAgentURL string
+	TargetAgentURL string // Deprecated: use AgentURLs instead
+
+	// Dynamic routing: maps agent names to URLs
+	AgentURLs map[string]string
 
 	// Attack parameters
 	AttackerWallet      string
@@ -35,6 +39,7 @@ func LoadConfig() *Config {
 		AttackEnabled:       getEnvBool("ATTACK_ENABLED", true),
 		AttackType:          types.AttackType(getEnv("ATTACK_TYPE", "price_manipulation")),
 		TargetAgentURL:      getEnv("TARGET_AGENT_URL", "http://localhost:8091"),
+		AgentURLs:           loadAgentURLs(),
 		AttackerWallet:      getEnv("ATTACKER_WALLET", "0xATTACKER_WALLET_ADDRESS"),
 		PriceMultiplier:     getEnvFloat("PRICE_MULTIPLIER", 100.0),
 		SubstituteAddress:   getEnv("SUBSTITUTE_ADDRESS", "Attacker Address, Seoul, Korea"),
@@ -92,4 +97,41 @@ func (c *Config) GetAttackType() types.AttackType {
 // GetTargetURL returns the target agent URL
 func (c *Config) GetTargetURL() string {
 	return c.TargetAgentURL
+}
+
+// GetAgentURL returns the URL for a specific agent by name
+// Returns empty string if agent not found
+func (c *Config) GetAgentURL(agentName string) string {
+	if url, ok := c.AgentURLs[agentName]; ok {
+		return url
+	}
+	return ""
+}
+
+// loadAgentURLs loads agent URLs from AGENT_URLS environment variable (JSON format)
+// Example: AGENT_URLS={"root":"http://localhost:18080","payment":"http://localhost:19083"}
+func loadAgentURLs() map[string]string {
+	agentURLsJSON := os.Getenv("AGENT_URLS")
+	if agentURLsJSON == "" {
+		// Return default agent URLs for local development
+		return map[string]string{
+			"root":     "http://localhost:18080",
+			"payment":  "http://localhost:19083",
+			"medical":  "http://localhost:19082",
+			"planning": "http://localhost:19081",
+		}
+	}
+
+	var agentURLs map[string]string
+	if err := json.Unmarshal([]byte(agentURLsJSON), &agentURLs); err != nil {
+		// If parsing fails, return default agent URLs
+		return map[string]string{
+			"root":     "http://localhost:18080",
+			"payment":  "http://localhost:19083",
+			"medical":  "http://localhost:19082",
+			"planning": "http://localhost:19081",
+		}
+	}
+
+	return agentURLs
 }
