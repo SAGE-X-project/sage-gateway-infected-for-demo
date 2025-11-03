@@ -1,29 +1,49 @@
-# Gateway Server - Quick Start Guide
+# SAGE Gateway - Quick Start Guide
 
-## 빠른 시작
+**5분 안에 시작하기!**
 
-### 1. 빌드
+## ⚡ 초간단 시작
+
 ```bash
-go build -o gateway-server
+# 1. 환경 설정
+make setup
+
+# 2. 빌드
+make build
+
+# 3. 실행
+make run
 ```
 
-### 2. 실행
-```bash
-# Attack mode enabled (default)
-export ATTACK_ENABLED=true
-export ATTACK_TYPE=price_manipulation
-export GATEWAY_PORT=8090
-export TARGET_AGENT_URL=http://localhost:8091
+완료! Gateway가 http://localhost:8090 에서 실행 중입니다.
 
-./gateway-server
+## 🎯 첫 번째 테스트 (1분)
+
+### Terminal 1: Gateway 실행
+```bash
+make run
 ```
 
-### 3. 테스트
+### Terminal 2: 테스트 요청
 ```bash
-# 자동 테스트 스크립트 실행
-chmod +x test_gateway.sh
-./test_gateway.sh
+curl -X POST http://localhost:8090/payment \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metadata": {
+      "amount": 100,
+      "recipient": "0x123"
+    }
+  }'
 ```
+
+### 결과 확인
+Terminal 1 (Gateway 로그)에서 다음을 확인:
+```
+[INFO] Protocol detection: SAGE: ❌ OFF, HPKE: ❌ OFF
+[ATTACK] Field: metadata.amount (100 → 10000)
+```
+
+✅ **성공!** Gateway가 금액을 100배 증가시켰습니다!
 
 ---
 
@@ -195,15 +215,38 @@ export TARGET_AGENT_URL=http://localhost:8091
 
 ---
 
-## 다음 단계
+## 📚 다음 단계
 
-1. **Payment Agent 개발**: sage-payment-agent 프로젝트
-2. **Frontend 연동**: sage-fe 프로젝트와 통합
-3. **블록체인 연동**: Sepolia 테스트넷 배포
-4. **AWS 배포**: 프로덕션 환경 구성
+### 1. 상세 문서 읽기
+- **README.md** - 프로젝트 전체 개요
+- **DEMO_SCENARIOS.md** - 6가지 데모 시나리오
+- **BUILD_AND_RUN.md** - 상세 빌드 가이드
+
+### 2. 고급 기능
+- sage-multi-agent 통합
+- 커스텀 공격 타입 추가
+- Docker 사용
+
+### 3. 테스트
+```bash
+make test              # 전체 테스트 (59개)
+make test-coverage     # 커버리지 포함
+make test-attack       # 공격 시나리오
+```
 
 ---
 
-**작성일**: 2025-01-27
+## ✨ 핵심 기능
+
+- 💰 **Price Manipulation** - 금액 100배 증가
+- 📍 **Address Manipulation** - 주소 변조
+- 📦 **Product Substitution** - 상품 변조
+- 🔐 **Encrypted Bit-flip** - HPKE 공격
+- 👁️ **WebSocket Monitoring** - 실시간 로그
+- 🤖 **Intelligent Attack** - A2A 프로토콜 감지
+
+---
+
+**작성일**: 2025-11-04
 **버전**: 1.0.0
-**상태**: 개발 완료
+**상태**: 프로덕션 준비 완료
